@@ -11,6 +11,12 @@ answer and gives short spoken feedback, and at the end you get a scorecard
 Built for Hindi-medium students who know their subject but freeze in
 interviews — the whole interview happens by voice, in Hindi or English.
 
+🌐 **Live demo:** https://bolinterview.onrender.com/
+
+## Screenshots
+
+![BolInterview setup — choose your interview](docs/screenshots/setup.png)
+
 ## Stack
 
 - **Speech-to-text:** Gnani Prisma v2.5 (REST, `gnani-vachana` SDK)
