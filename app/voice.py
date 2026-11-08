@@ -22,6 +22,7 @@ No live Gnani call is ever made in tests — monkeypatch
 
 import logging
 import os
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,34 @@ def _get_tts_client():
     return _tts_client
 
 
+def _call_with_retry(fn, *, label: str):
+    """Call fn(), retrying transient Gnani failures with backoff.
+
+    The Vachana API occasionally returns HTTP 504 (gateway time-out) and
+    then HTTP 429 ("Only 1 active request is allowed at a time") while the
+    timed-out request is still counted as active — both seen live on
+    Render 8 Nov 2026. A single call failing that way is transient, so
+    retry twice (after 5 s, then 15 s) before giving up. Non-transient
+    errors are raised immediately. Returns fn()'s result.
+    """
+    delays = (5.0, 15.0)
+    last_exc = None
+    for attempt in range(3):
+        try:
+            return fn()
+        except Exception as exc:
+            last_exc = exc
+            msg = str(exc)
+            transient = ("504" in msg or "429" in msg or "RATE_LIMITED" in msg
+                         or "time-out" in msg.lower() or "timeout" in msg.lower())
+            if not transient or attempt == 2:
+                raise
+            delay = delays[attempt]
+            logger.warning("%s failed (%s); retrying in %.0fs.", label, exc, delay)
+            time.sleep(delay)
+    raise last_exc
+
+
 def voice_for_language(language: str) -> str:
     """Timbre v2.5 voice for a language code (Nalini for Hindi, Kaveri for English)."""
     return TTS_VOICES.get(language, TTS_VOICES[TTS_DEFAULT_LANGUAGE])
@@ -113,9 +142,12 @@ def transcribe_audio(audio_bytes: bytes, filename: str = "clip.m4a",
         return ""
     try:
         # model=None -> the server-side default (Prisma v2.5).
-        result = client.transcribe_bytes(
-            audio_bytes, filename=filename or "clip.m4a",
-            language_code=language_code,
+        result = _call_with_retry(
+            lambda: client.transcribe_bytes(
+                audio_bytes, filename=filename or "clip.m4a",
+                language_code=language_code,
+            ),
+            label="Prisma transcription",
         )
     except Exception as exc:
         logger.warning("Prisma transcription failed (%s).", exc)
@@ -143,13 +175,16 @@ def synthesize_speech(text: str, language: str = TTS_DEFAULT_LANGUAGE) -> bytes:
             audio_config = AudioConfig(
                 container="mp3", sample_rate=48000, bitrate="128k"
             )
-        audio = client.synthesize(
-            text,
-            voice=voice_for_language(language),
-            model=TTS_MODEL,
-            language=language,
-            speed=1.0,
-            audio_config=audio_config,
+        audio = _call_with_retry(
+            lambda: client.synthesize(
+                text,
+                voice=voice_for_language(language),
+                model=TTS_MODEL,
+                language=language,
+                speed=1.0,
+                audio_config=audio_config,
+            ),
+            label="Timbre synthesis",
         )
     except Exception as exc:
         logger.warning("Timbre synthesis failed (%s).", exc)

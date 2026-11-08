@@ -23,7 +23,7 @@ from pydantic import BaseModel
 
 from . import interview, llm, voice
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 
 app = FastAPI(title="BolInterview", version=APP_VERSION)
 
