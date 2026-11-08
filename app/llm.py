@@ -62,6 +62,10 @@ def _chat_completion(system_prompt: str, user_prompt: str, max_tokens: int) -> s
             headers={"Authorization": f"Bearer {api_key}"},
             json={
                 "model": GROQ_MODEL,
+                # gpt-oss-120b is a reasoning model: without this, its internal
+                # reasoning can eat the whole max_tokens budget and the reply
+                # comes back with empty content (verified live 8 Nov 2026).
+                "reasoning_effort": "low",
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
@@ -124,7 +128,7 @@ def evaluate_answer(question: str, transcript: str, language: str) -> dict:
         "with encouraging feedback."
     )
     user_prompt = f"Question: {question}\nAnswer: {transcript or '(no answer)'}\nScore it."
-    raw = _chat_completion(system_prompt, user_prompt, max_tokens=150)
+    raw = _chat_completion(system_prompt, user_prompt, max_tokens=400)
     parsed = _parse_json_object(raw)
     if parsed is None:
         return {
@@ -180,7 +184,7 @@ def summarize_session(results: list, language: str) -> dict:
         f"tips in {lang_name}. Reply with ONLY a JSON object like "
         '{"strengths": ["..."], "improvements": ["...", "..."]}.'
     )
-    raw = _chat_completion(system_prompt, "\n\n".join(lines), max_tokens=250)
+    raw = _chat_completion(system_prompt, "\n\n".join(lines), max_tokens=600)
     parsed = _parse_json_object(raw)
     if parsed is None:
         return fallback
