@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BolInterview — Voice Mock Interviews in Hindi &amp; English</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+  <header class="head">
+    <h1>🎙️ BolInterview</h1>
+    <p class="tagline">A mock interviewer that speaks your language. Answer out loud, get honest feedback — in Hindi or English.</p>
+    <p id="health" class="health" aria-live="polite">Checking backend…</p>
+  </header>
+
+  <!-- Setup -->
+  <section class="card" id="setupCard" aria-label="Set up your interview">
+    <h2>Set up your interview</h2>
+    <label class="field-label" for="roleSelect">Role</label>
+    <div class="roles" id="rolePicker" role="radiogroup" aria-label="Role"></div>
+    <label class="field-label" for="langSelect">Language</label>
+    <select id="langSelect" class="select">
+      <option value="hi-IN" selected>हिन्दी — Hindi</option>
+      <option value="en-IN">English</option>
+    </select>
+    <button type="button" class="primary big" id="startBtn">Start interview</button>
+    <p class="small">4 questions. Speak your answers — no typing needed. The interviewer speaks each question and gives you spoken feedback.</p>
+    <p class="small" id="setupError" role="alert" hidden></p>
+  </section>
+
+  <!-- Interview -->
+  <section class="card" id="interviewCard" aria-label="Interview" hidden>
+    <div class="progress" id="progress">Question 1 of 4</div>
+    <h2 id="questionText" class="question"></h2>
+    <audio id="questionAudio" controls autoplay></audio>
+    <div class="record-row">
+      <button type="button" class="mic" id="recordBtn" aria-pressed="false">🎙️ Record your answer</button>
+      <span id="recordState" class="small" aria-live="polite"></span>
+    </div>
+    <div id="transcriptBox" class="transcript" hidden>
+      <strong>You said:</strong> <span id="transcriptText"></span>
+    </div>
+    <div id="feedbackBox" class="feedback" hidden>
+      <p><strong>Score: <span id="feedbackScore"></span> / 10</strong></p>
+      <p id="feedbackText"></p>
+      <audio id="feedbackAudio" controls></audio>
+    </div>
+    <p class="small" id="interviewError" role="alert" hidden></p>
+    <p class="small" id="busy" role="status" hidden>Listening and evaluating…</p>
+  </section>
+
+  <!-- Scorecard -->
+  <section class="card" id="scoreCard" aria-label="Scorecard" hidden>
+    <h2>Your scorecard</h2>
+    <div class="overall"><span id="overallScore">–</span><span class="out-of">/ 10</span></div>
+    <p id="summaryText"></p>
+    <audio id="summaryAudio" controls></audio>
+    <div id="perQuestion"></div>
+    <h3>Strengths</h3>
+    <ul id="strengthsList"></ul>
+    <h3>What to improve</h3>
+    <ul id="improvementsList"></ul>
+    <button type="button" class="primary" id="againBtn">Start a new interview</button>
+  </section>
+
+  <footer class="foot">
+    BolInterview · Powered by Gnani Prisma v2.5 (speech-to-text) + Timbre v2.5 (text-to-speech) and Groq.
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+let sessionId = null;
+let role = null;
+let language = "hi-IN";
+let questionIndex = 0;
+let mediaRecorder = null;
+let audioChunks = [];
+let recordTimer = null;
+let recording = false;
+
+// --- helpers ---
+function showError(el, msg) {
+  el.textContent = msg;
+  el.hidden = !msg;
+}
+function blobUrl(b64, mime) {
+  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  return URL.createObjectURL(new Blob([bytes], { type: mime || "audio/mpeg" }));
+}
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || ("Request failed (" + res.status + ")"));
+  return data;
+}
+
+// --- health + roles ---
+fetch("/api/health").then(async (res) => {
+  const data = await res.json().catch(() => ({}));
+  const el = $("health");
+  if (!res.ok || data.status !== "ok") { el.textContent = "Backend unreachable — start the server first."; return; }
+  const bits = [];
+  bits.push(data.gnani_configured ? "Voice: ready" : "Voice: not configured (set GNANI_API_KEY)");
+  bits.push(data.groq_configured ? "Evaluation: ready" : "Evaluation: answers recorded, scores unavailable (set GROQ_API_KEY)");
+  el.textContent = "Backend connected · " + bits.join(" · ");
+}).catch(() => { $("health").textContent = "Backend unreachable — start the server first."; });
+
+fetch("/api/roles").then(async (res) => {
+  const data = await res.json().catch(() => ({}));
+  const picker = $("rolePicker");
+  (data.roles || []).forEach((r, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "role" + (i === 0 ? " selected" : "");
+    b.textContent = r.name;
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", i === 0 ? "true" : "false");
+    b.addEventListener("click", () => {
+      role = r.id;
+      picker.querySelectorAll(".role").forEach((x) => { x.classList.remove("selected"); x.setAttribute("aria-checked", "false"); });
+      b.classList.add("selected");
+      b.setAttribute("aria-checked", "true");
+    });
+    picker.appendChild(b);
+    if (i === 0) role = r.id;
+  });
+}).catch(() => {});
+
+// --- start ---
+$("startBtn").addEventListener("click", async () => {
+  if (!role) { showError($("setupError"), "Pick a role first."); return; }
+  language = $("langSelect").value;
+  showError($("setupError"), "");
+  $("startBtn").disabled = true;
+  try {
+    const data = await api("/api/interview/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role, language }),
+    });
+    sessionId = data.session_id;
+    questionIndex = data.question_index;
+    $("setupCard").hidden = true;
+    $("interviewCard").hidden = false;
+    $("scoreCard").hidden = true;
+    showQuestion(data);
+  } catch (err) {
+    showError($("setupError"), err.message || "Could not start the interview.");
+  } finally {
+    $("startBtn").disabled = false;
+  }
+});
+
+function showQuestion(data) {
+  questionIndex = data.question_index;
+  $("progress").textContent = "Question " + (questionIndex + 1) + " of 4";
+  $("questionText").textContent = data.question_text;
+  const qa = $("questionAudio");
+  if (data.question_audio_base64) { qa.src = blobUrl(data.question_audio_base64, data.audio_mime); qa.play().catch(() => {}); }
+  else { qa.removeAttribute("src"); }
+  $("transcriptBox").hidden = true;
+  $("feedbackBox").hidden = true;
+  showError($("interviewError"), "");
+  $("recordBtn").disabled = false;
+}
+
+// --- recording ---
+function pickMimeType() {
+  if (typeof MediaRecorder === "undefined") return "";
+  if (MediaRecorder.isTypeSupported("audio/mp4")) return "audio/mp4";
+  if (MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")) return "audio/ogg;codecs=opus";
+  return "";
+}
+function filenameFor(type) {
+  if (type.includes("mp4")) return "clip.m4a";
+  if (type.includes("ogg")) return "clip.ogg";
+  if (type.includes("wav")) return "clip.wav";
+  return "clip.m4a";
+}
+
+$("recordBtn").addEventListener("click", async () => {
+  if (recording) { stopRecording(); return; }
+  if (!sessionId) return;
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    showError($("interviewError"), "Voice input needs a browser with microphone recording (MediaRecorder).");
+    return;
+  }
+  showError($("interviewError"), "");
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = pickMimeType();
+    const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+    audioChunks = [];
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size) audioChunks.push(e.data); };
+    recorder.onstop = () => {
+      stream.getTracks().forEach((t) => t.stop());
+      setRecording(false);
+      const blob = new Blob(audioChunks, { type: recorder.mimeType || "audio/mp4" });
+      audioChunks = [];
+      if (blob.size > 0) submitAnswer(blob);
+      else showError($("interviewError"), "No audio was captured — please try again.");
+    };
+    mediaRecorder = recorder;
+    recorder.start();
+    setRecording(true);
+    recordTimer = setTimeout(stopRecording, 28000); // STT caps at 30 s
+  } catch {
+    showError($("interviewError"), "Microphone access was denied — allow it in the browser to answer by voice.");
+  }
+});
+
+function setRecording(on) {
+  recording = on;
+  const btn = $("recordBtn");
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+  btn.textContent = on ? "⏹️ Stop recording" : "🎙️ Record your answer";
+  btn.classList.toggle("recording", on);
+  $("recordState").textContent = on ? "Recording… tap Stop when you finish (max 28 s)." : "";
+}
+function stopRecording() {
+  if (recordTimer) { clearTimeout(recordTimer); recordTimer = null; }
+  if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+  mediaRecorder = null;
+}
+
+async function submitAnswer(blob) {
+  if (!sessionId) return;
+  $("busy").hidden = false;
+  $("recordBtn").disabled = true;
+  showError($("interviewError"), "");
+  try {
+    const form = new FormData();
+    form.append("audio", blob, filenameFor(blob.type));
+    const data = await api("/api/interview/answer?session_id=" + encodeURIComponent(sessionId), {
+      method: "POST",
+      body: form,
+    });
+    $("transcriptText").textContent = data.transcript;
+    $("transcriptBox").hidden = false;
+    $("feedbackScore").textContent = data.score === null || data.score === undefined ? "–" : data.score;
+    $("feedbackText").textContent = data.feedback_text;
+    const fa = $("feedbackAudio");
+    if (data.feedback_audio_base64) { fa.src = blobUrl(data.feedback_audio_base64, data.audio_mime); fa.play().catch(() => {}); }
+    else { fa.removeAttribute("src"); }
+    $("feedbackBox").hidden = false;
+    if (data.done) {
+      setTimeout(() => showScorecard(data.scorecard, data.summary_text, data.summary_audio_base64, data.audio_mime), 2500);
+    } else {
+      setTimeout(() => showQuestion({
+        question_index: data.next_question_index,
+        question_text: data.next_question_text,
+        question_audio_base64: data.next_question_audio_base64,
+        audio_mime: data.audio_mime,
+      }), 2500);
+    }
+  } catch (err) {
+    showError($("interviewError"), err.message || "Could not evaluate that answer.");
+    $("recordBtn").disabled = false;
+  } finally {
+    $("busy").hidden = true;
+  }
+}
+
+function showScorecard(card, summaryText, summaryAudioB64, audioMime) {
+  $("interviewCard").hidden = true;
+  $("scoreCard").hidden = false;
+  $("overallScore").textContent = card.overall_score === null || card.overall_score === undefined ? "–" : card.overall_score;
+  $("summaryText").textContent = summaryText || "";
+  const sa = $("summaryAudio");
+  if (summaryAudioB64) { sa.src = blobUrl(summaryAudioB64, audioMime); sa.play().catch(() => {}); }
+  else { sa.removeAttribute("src"); }
+  const per = $("perQuestion");
+  per.innerHTML = "";
+  (card.per_question || []).forEach((q, i) => {
+    const div = document.createElement("div");
+    div.className = "qa";
+    div.innerHTML =
+      "<p><strong>Q" + (i + 1) + ".</strong> " + escapeHtml(q.question) + "</p>" +
+      "<p><strong>You said:</strong> " + escapeHtml(q.transcript || "") + "</p>" +
+      "<p><strong>Score: " + (q.score === null || q.score === undefined ? "–" : q.score) + " / 10</strong> — " + escapeHtml(q.feedback || "") + "</p>";
+    per.appendChild(div);
+  });
+  fillList($("strengthsList"), card.strengths);
+  fillList($("improvementsList"), card.improvements);
+}
+function fillList(ul, items) {
+  ul.innerHTML = "";
+  (items || []).forEach((t) => {
+    const li = document.createElement("li");
+    li.textContent = t;
+    ul.appendChild(li);
+  });
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+}
+
+$("againBtn").addEventListener("click", () => {
+  sessionId = null;
+  $("scoreCard").hidden = true;
+  $("interviewCard").hidden = true;
+  $("setupCard").hidden = false;
+});
+</script>
+</body>
+</html>

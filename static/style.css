@@ -1,0 +1,38 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f4f6fb; color: #1a1a1a; }
+.page { max-width: 760px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+.head h1 { font-size: 2rem; margin: 0 0 0.25rem; }
+.tagline { font-size: 1.05rem; color: #444; margin: 0 0 0.5rem; }
+.health { font-size: 0.9rem; color: #555; margin: 0 0 1rem; }
+.card { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 1.25rem 1.25rem 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.card h2 { margin: 0 0 0.75rem; font-size: 1.25rem; }
+.card h3 { margin: 1rem 0 0.25rem; font-size: 1.05rem; }
+.field-label { display: block; font-weight: 600; margin: 0.9rem 0 0.35rem; }
+.roles { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.role { border: 1px solid #bbb; background: #fff; border-radius: 999px; padding: 0.5rem 0.9rem; font-size: 0.95rem; cursor: pointer; }
+.role.selected { background: #1a56db; color: #fff; border-color: #1a56db; }
+.select { width: 100%; padding: 0.6rem; font-size: 1rem; border: 1px solid #bbb; border-radius: 8px; background: #fff; }
+.primary { background: #1a56db; color: #fff; border: none; border-radius: 8px; padding: 0.7rem 1.2rem; font-size: 1rem; cursor: pointer; }
+.primary:disabled { opacity: 0.5; cursor: default; }
+.primary.big { width: 100%; margin-top: 1.25rem; padding: 0.85rem; font-size: 1.1rem; }
+.small { font-size: 0.88rem; color: #555; }
+.progress { font-size: 0.9rem; font-weight: 600; color: #1a56db; margin-bottom: 0.5rem; }
+.question { font-size: 1.3rem; line-height: 1.4; }
+audio { width: 100%; margin: 0.5rem 0; }
+.record-row { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.75rem; flex-wrap: wrap; }
+.mic { background: #0e9f6e; color: #fff; border: none; border-radius: 999px; padding: 0.8rem 1.3rem; font-size: 1.05rem; cursor: pointer; }
+.mic:disabled { opacity: 0.5; cursor: default; }
+.mic.recording { background: #c81e1e; }
+.transcript, .feedback { background: #f4f6fb; border-radius: 8px; padding: 0.75rem 1rem; margin-top: 0.75rem; }
+.feedback p { margin: 0.25rem 0; }
+.overall { font-size: 3rem; font-weight: 700; color: #1a56db; }
+.out-of { font-size: 1.25rem; color: #555; }
+.qa { border-top: 1px solid #e5e5e5; padding: 0.5rem 0; }
+.qa p { margin: 0.3rem 0; }
+ul { margin: 0.25rem 0 0.5rem; padding-left: 1.25rem; }
+.foot { text-align: center; font-size: 0.85rem; color: #777; margin-top: 1rem; }
+[role="alert"] { color: #b42318; }
+@media (max-width: 560px) {
+  .head h1 { font-size: 1.6rem; }
+  .question { font-size: 1.15rem; }
+}
