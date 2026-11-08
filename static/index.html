@@ -4,68 +4,114 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BolInterview — Voice Mock Interviews in Hindi &amp; English</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="page">
   <header class="head">
-    <h1>🎙️ BolInterview</h1>
-    <p class="tagline">A mock interviewer that speaks your language. Answer out loud, get honest feedback — in Hindi or English.</p>
-    <p id="health" class="health" aria-live="polite">Checking backend…</p>
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1a1005" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 19v3"/></svg>
+      </div>
+      <div>
+        <h1>Bol<span>Interview</span></h1>
+        <p class="tagline">A mock interviewer that speaks your language. Answer out loud, get honest feedback — in Hindi or English.</p>
+      </div>
+    </div>
+    <p class="status-pill" id="health"><span class="dot"></span><span id="healthText">Checking backend…</span></p>
   </header>
 
   <!-- Setup -->
   <section class="card" id="setupCard" aria-label="Set up your interview">
-    <h2>Set up your interview</h2>
-    <label class="field-label" for="roleSelect">Role</label>
+    <h2>Choose your interview</h2>
+    <p class="sub">Pick a role and a language. The interviewer asks four questions out loud — you answer by speaking. No typing, no camera, no judgement.</p>
+    <label class="field-label">Role</label>
     <div class="roles" id="rolePicker" role="radiogroup" aria-label="Role"></div>
-    <label class="field-label" for="langSelect">Language</label>
-    <select id="langSelect" class="select">
-      <option value="hi-IN" selected>हिन्दी — Hindi</option>
-      <option value="en-IN">English</option>
-    </select>
-    <button type="button" class="primary big" id="startBtn">Start interview</button>
-    <p class="small">4 questions. Speak your answers — no typing needed. The interviewer speaks each question and gives you spoken feedback.</p>
+    <label class="field-label">Language</label>
+    <div class="lang-toggle" role="radiogroup" aria-label="Language">
+      <button type="button" class="lang-btn selected" data-lang="hi-IN" role="radio" aria-checked="true">हिन्दी</button>
+      <button type="button" class="lang-btn" data-lang="en-IN" role="radio" aria-checked="false">English</button>
+    </div>
+    <button type="button" class="primary big" id="startBtn">🎙️ Start interview</button>
+    <p class="small hint">4 questions · about 3 minutes · your answers are scored on the spot, and you get a scorecard at the end.</p>
     <p class="small" id="setupError" role="alert" hidden></p>
   </section>
 
   <!-- Interview -->
   <section class="card" id="interviewCard" aria-label="Interview" hidden>
-    <div class="progress" id="progress">Question 1 of 4</div>
-    <h2 id="questionText" class="question"></h2>
-    <audio id="questionAudio" controls autoplay></audio>
-    <div class="record-row">
-      <button type="button" class="mic" id="recordBtn" aria-pressed="false">🎙️ Record your answer</button>
-      <span id="recordState" class="small" aria-live="polite"></span>
+    <div class="progress-row">
+      <div class="progress" id="progress">Question 1 of 4</div>
+      <div class="segments" id="segments" aria-hidden="true"><span class="seg now"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
     </div>
-    <div id="transcriptBox" class="transcript" hidden>
-      <strong>You said:</strong> <span id="transcriptText"></span>
+
+    <div class="stage">
+      <div class="person" id="interviewerPanel">
+        <div class="avatar interviewer" id="interviewerAvatar" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1a1005" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+        </div>
+        <div style="flex:1; min-width:0">
+          <div class="who">Interviewer <span class="live" id="speakState">· listening</span></div>
+          <h2 id="questionText" class="question"></h2>
+          <div class="eq" id="interviewerEq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+          <audio id="questionAudio" controls autoplay></audio>
+        </div>
+      </div>
     </div>
-    <div id="feedbackBox" class="feedback" hidden>
-      <p><strong>Score: <span id="feedbackScore"></span> / 10</strong></p>
+
+    <div class="record-zone">
+      <button type="button" class="mic-btn" id="recordBtn" aria-pressed="false" aria-label="Record your answer">🎙️</button>
+      <div class="mic-label" id="micLabel">Tap the mic and answer out loud</div>
+      <div class="mic-sub" id="recordState" aria-live="polite"></div>
+      <canvas class="wave" id="waveCanvas" width="420" height="44" aria-hidden="true"></canvas>
+      <div class="record-timer" id="recordTimer"></div>
+    </div>
+
+    <div id="transcriptBox" class="bubble you" hidden>
+      <span class="b-tag">You said</span>
+      <span id="transcriptText"></span>
+    </div>
+    <div id="feedbackBox" class="bubble coach" hidden>
+      <span class="b-tag">Interviewer’s feedback</span>
+      <p><span class="score-chip"><span class="big" id="feedbackScore">–</span> / 10</span></p>
       <p id="feedbackText"></p>
       <audio id="feedbackAudio" controls></audio>
     </div>
     <p class="small" id="interviewError" role="alert" hidden></p>
-    <p class="small" id="busy" role="status" hidden>Listening and evaluating…</p>
+    <p class="small busy" id="busy" role="status" hidden><span class="dots"><i></i><i></i><i></i></span> Listening and evaluating…</p>
   </section>
 
   <!-- Scorecard -->
   <section class="card" id="scoreCard" aria-label="Scorecard" hidden>
     <h2>Your scorecard</h2>
-    <div class="overall"><span id="overallScore">–</span><span class="out-of">/ 10</span></div>
-    <p id="summaryText"></p>
+    <div class="score-hero">
+      <svg class="ring" viewBox="0 0 132 132" role="img" aria-label="Overall score">
+        <defs>
+          <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#f97316"/>
+          </linearGradient>
+        </defs>
+        <circle class="track" cx="66" cy="66" r="56" fill="none" stroke-width="11"/>
+        <circle class="val" id="scoreRing" cx="66" cy="66" r="56" fill="none" stroke-width="11" stroke-dasharray="351.86" stroke-dashoffset="351.86" transform="rotate(-90 66 66)"/>
+        <text x="66" y="66" text-anchor="middle" font-size="30" id="scoreRingNum">–</text>
+        <text x="66" y="86" text-anchor="middle" class="ring-sub">/ 10</text>
+      </svg>
+      <p class="score-note" id="summaryText"></p>
+    </div>
     <audio id="summaryAudio" controls></audio>
     <div id="perQuestion"></div>
     <h3>Strengths</h3>
-    <ul id="strengthsList"></ul>
+    <ul class="clean good" id="strengthsList"></ul>
     <h3>What to improve</h3>
-    <ul id="improvementsList"></ul>
+    <ul class="clean fix" id="improvementsList"></ul>
     <button type="button" class="primary" id="againBtn">Start a new interview</button>
   </section>
 
   <footer class="foot">
-    BolInterview · Powered by Gnani Prisma v2.5 (speech-to-text) + Timbre v2.5 (text-to-speech) and Groq.
+    BolInterview · Powered by Gnani Prisma v2.5 (speech-to-text) + Timbre v2.5 (text-to-speech) and Groq.<br>
+    <a href="https://bolinterview.onrender.com">bolinterview.onrender.com</a>
   </footer>
 </div>
 
@@ -80,6 +126,51 @@ let mediaRecorder = null;
 let audioChunks = [];
 let recordTimer = null;
 let recording = false;
+
+// --- live waveform + timer ---
+let audioCtx = null, analyser = null, waveRaf = null, recordStart = 0, timerInt = null;
+const waveCanvas = $("waveCanvas");
+const waveCtx = waveCanvas.getContext("2d");
+
+function drawWave() {
+  if (!analyser) return;
+  const data = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(data);
+  const w = waveCanvas.width, h = waveCanvas.height;
+  waveCtx.clearRect(0, 0, w, h);
+  const bars = 48, bw = w / bars;
+  for (let i = 0; i < bars; i++) {
+    const v = data[Math.floor(i * data.length / bars)] / 255;
+    const bh = Math.max(3, v * h);
+    waveCtx.fillStyle = recording ? "#f59e0b" : "#7aa2ff";
+    waveCtx.fillRect(i * bw + 1, (h - bh) / 2, bw - 2, bh);
+  }
+  waveRaf = requestAnimationFrame(drawWave);
+}
+function startWave(stream) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    src.connect(analyser);
+    drawWave();
+  } catch { /* waveform is decoration; recording still works */ }
+}
+function stopWave() {
+  if (waveRaf) cancelAnimationFrame(waveRaf);
+  waveRaf = null; analyser = null;
+  if (waveCtx) waveCtx.clearRect(0, 0, waveCanvas.width, waveCanvas.height);
+  if (timerInt) { clearInterval(timerInt); timerInt = null; }
+  $("recordTimer").textContent = "";
+}
+function startTimer() {
+  recordStart = Date.now();
+  timerInt = setInterval(() => {
+    const s = Math.floor((Date.now() - recordStart) / 1000);
+    $("recordTimer").textContent = "● " + String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+  }, 500);
+}
 
 // --- helpers ---
 function showError(el, msg) {
@@ -96,26 +187,43 @@ async function api(path, opts) {
   if (!res.ok) throw new Error(data.detail || ("Request failed (" + res.status + ")"));
   return data;
 }
+function setSpeaking(on) {
+  $("interviewerAvatar").classList.toggle("speaking", on);
+  $("interviewerPanel").classList.toggle("speaking-on", on);
+  $("speakState").textContent = on ? "· speaking…" : "· listening";
+}
+$("questionAudio").addEventListener("play", () => setSpeaking(true));
+$("questionAudio").addEventListener("pause", () => setSpeaking(false));
+$("questionAudio").addEventListener("ended", () => setSpeaking(false));
+$("feedbackAudio").addEventListener("play", () => setSpeaking(true));
+$("feedbackAudio").addEventListener("pause", () => setSpeaking(false));
+$("feedbackAudio").addEventListener("ended", () => setSpeaking(false));
 
 // --- health + roles ---
 fetch("/api/health").then(async (res) => {
   const data = await res.json().catch(() => ({}));
-  const el = $("health");
+  const el = $("healthText");
   if (!res.ok || data.status !== "ok") { el.textContent = "Backend unreachable — start the server first."; return; }
   const bits = [];
   bits.push(data.gnani_configured ? "Voice: ready" : "Voice: not configured (set GNANI_API_KEY)");
   bits.push(data.groq_configured ? "Evaluation: ready" : "Evaluation: answers recorded, scores unavailable (set GROQ_API_KEY)");
   el.textContent = "Backend connected · " + bits.join(" · ");
-}).catch(() => { $("health").textContent = "Backend unreachable — start the server first."; });
+}).catch(() => { $("healthText").textContent = "Backend unreachable — start the server first."; });
 
+const ROLE_META = {
+  "ai-ml": { ico: "🧠", desc: "Machine learning · NLP · Computer vision" },
+  "sde": { ico: "💻", desc: "APIs · Data structures · Git" },
+  "data-analyst": { ico: "📊", desc: "SQL · Data cleaning · Insights" },
+};
 fetch("/api/roles").then(async (res) => {
   const data = await res.json().catch(() => ({}));
   const picker = $("rolePicker");
   (data.roles || []).forEach((r, i) => {
+    const meta = ROLE_META[r.id] || { ico: "🎯", desc: "" };
     const b = document.createElement("button");
     b.type = "button";
     b.className = "role" + (i === 0 ? " selected" : "");
-    b.textContent = r.name;
+    b.innerHTML = '<span class="r-ico">' + meta.ico + '</span><span class="r-name">' + r.name + '</span><span class="r-desc">' + meta.desc + '</span>';
     b.setAttribute("role", "radio");
     b.setAttribute("aria-checked", i === 0 ? "true" : "false");
     b.addEventListener("click", () => {
@@ -129,10 +237,19 @@ fetch("/api/roles").then(async (res) => {
   });
 }).catch(() => {});
 
+// --- language toggle ---
+document.querySelectorAll(".lang-btn").forEach((b) => {
+  b.addEventListener("click", () => {
+    language = b.dataset.lang;
+    document.querySelectorAll(".lang-btn").forEach((x) => { x.classList.remove("selected"); x.setAttribute("aria-checked", "false"); });
+    b.classList.add("selected");
+    b.setAttribute("aria-checked", "true");
+  });
+});
+
 // --- start ---
 $("startBtn").addEventListener("click", async () => {
   if (!role) { showError($("setupError"), "Pick a role first."); return; }
-  language = $("langSelect").value;
   showError($("setupError"), "");
   $("startBtn").disabled = true;
   try {
@@ -154,9 +271,16 @@ $("startBtn").addEventListener("click", async () => {
   }
 });
 
+function paintSegments() {
+  document.querySelectorAll("#segments .seg").forEach((s, i) => {
+    s.classList.toggle("done", i < questionIndex);
+    s.classList.toggle("now", i === questionIndex);
+  });
+}
 function showQuestion(data) {
   questionIndex = data.question_index;
   $("progress").textContent = "Question " + (questionIndex + 1) + " of 4";
+  paintSegments();
   $("questionText").textContent = data.question_text;
   const qa = $("questionAudio");
   if (data.question_audio_base64) { qa.src = blobUrl(data.question_audio_base64, data.audio_mime); qa.play().catch(() => {}); }
@@ -165,6 +289,9 @@ function showQuestion(data) {
   $("feedbackBox").hidden = true;
   showError($("interviewError"), "");
   $("recordBtn").disabled = false;
+  $("micLabel").textContent = "Tap the mic and answer out loud";
+  $("recordState").textContent = "";
+  stopWave();
 }
 
 // --- recording ---
@@ -198,6 +325,7 @@ $("recordBtn").addEventListener("click", async () => {
     recorder.onstop = () => {
       stream.getTracks().forEach((t) => t.stop());
       setRecording(false);
+      stopWave();
       const blob = new Blob(audioChunks, { type: recorder.mimeType || "audio/mp4" });
       audioChunks = [];
       if (blob.size > 0) submitAnswer(blob);
@@ -206,6 +334,8 @@ $("recordBtn").addEventListener("click", async () => {
     mediaRecorder = recorder;
     recorder.start();
     setRecording(true);
+    startWave(stream);
+    startTimer();
     recordTimer = setTimeout(stopRecording, 28000); // STT caps at 30 s
   } catch {
     showError($("interviewError"), "Microphone access was denied — allow it in the browser to answer by voice.");
@@ -216,9 +346,10 @@ function setRecording(on) {
   recording = on;
   const btn = $("recordBtn");
   btn.setAttribute("aria-pressed", on ? "true" : "false");
-  btn.textContent = on ? "⏹️ Stop recording" : "🎙️ Record your answer";
+  btn.textContent = on ? "⏹️" : "🎙️";
   btn.classList.toggle("recording", on);
-  $("recordState").textContent = on ? "Recording… tap Stop when you finish (max 28 s)." : "";
+  $("micLabel").textContent = on ? "Recording — speak now" : "Tap the mic and answer out loud";
+  $("recordState").textContent = on ? "Tap again to stop (max 28 s)." : "";
 }
 function stopRecording() {
   if (recordTimer) { clearTimeout(recordTimer); recordTimer = null; }
@@ -267,20 +398,37 @@ async function submitAnswer(blob) {
 function showScorecard(card, summaryText, summaryAudioB64, audioMime) {
   $("interviewCard").hidden = true;
   $("scoreCard").hidden = false;
-  $("overallScore").textContent = card.overall_score === null || card.overall_score === undefined ? "–" : card.overall_score;
+  const overall = card.overall_score;
   $("summaryText").textContent = summaryText || "";
   const sa = $("summaryAudio");
   if (summaryAudioB64) { sa.src = blobUrl(summaryAudioB64, audioMime); sa.play().catch(() => {}); }
   else { sa.removeAttribute("src"); }
+  // Animated ring + count-up.
+  const ring = $("scoreRing"), num = $("scoreRingNum");
+  const C = 351.86;
+  ring.style.strokeDashoffset = C;
+  num.textContent = "–";
+  requestAnimationFrame(() => {
+    if (overall === null || overall === undefined) { num.textContent = "–"; return; }
+    ring.style.strokeDashoffset = String(C * (1 - overall / 10));
+    const t0 = performance.now();
+    (function tick(t) {
+      const p = Math.min(1, (t - t0) / 900);
+      num.textContent = (overall * p).toFixed(1);
+      if (p < 1) requestAnimationFrame(tick);
+    })(t0);
+  });
   const per = $("perQuestion");
   per.innerHTML = "";
   (card.per_question || []).forEach((q, i) => {
     const div = document.createElement("div");
     div.className = "qa";
+    const sc = q.score === null || q.score === undefined ? null : q.score;
     div.innerHTML =
       "<p><strong>Q" + (i + 1) + ".</strong> " + escapeHtml(q.question) + "</p>" +
       "<p><strong>You said:</strong> " + escapeHtml(q.transcript || "") + "</p>" +
-      "<p><strong>Score: " + (q.score === null || q.score === undefined ? "–" : q.score) + " / 10</strong> — " + escapeHtml(q.feedback || "") + "</p>";
+      "<div class=\"q-bar\"><i style=\"width:" + (sc === null ? 0 : sc * 10) + "%\"></i></div>" +
+      "<p><span class=\"q-score\">Score: " + (sc === null ? "–" : sc) + " / 10</span> — " + escapeHtml(q.feedback || "") + "</p>";
     per.appendChild(div);
   });
   fillList($("strengthsList"), card.strengths);
